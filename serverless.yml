@@ -1,0 +1,67 @@
+service: resume
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: python3.8
+  lambdaHashingVersion: 20201221
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 's3:GetObject'
+      Resource:
+        - arn:aws:s3:::www.hodolk.com
+        - { "Fn::Join": ["", ["arn:aws:s3:::www.hodolk.com", "/*" ] ] }
+    - Effect: 'Allow'
+      Action:
+        - dynamodb:UpdateItem
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:Scan
+      Resource:
+        - arn:aws:sts::572927506162:assumed-role/resume-dev-us-east-1-lambdaRole/resume-dev-rest
+        - arn:aws:dynamodb:us-east-1:572927506162:table/visitor-counter2
+
+functions:
+  rest:
+    handler: function.handler
+    events:
+      - http:
+          path: /
+          method: get
+          cors:
+            origin: '*' # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: true
+
+
+resources:
+  Resources:
+    VisitorCounter:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        TableName: visitor-counter2
+        AttributeDefinitions:
+          -
+            AttributeName: 'date'
+            AttributeType: 'S'
+        KeySchema:
+          -
+            AttributeName: 'date'
+            KeyType: 'HASH'
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: 'www.hodolk.com'
+        VersioningConfiguration:
+          Status: Enabled
